@@ -1,6 +1,11 @@
 //Blogging App using Hooks
 import { useState, useRef, useEffect, useReducer } from "react";
 
+// import db exported from JSfile firebaseInit.js
+import { db } from "../firebaseInit.js";
+// database addDoc function from Firebase
+import { collection, addDoc } from "firebase/firestore";
+
 // Reducer function
 const blogsReducer = (state, action) => {
   switch (action.type) {
@@ -27,8 +32,7 @@ export default function Blog() {
   }, []);
 
   useEffect(() => {
-    console.log("Runs on Blogs Mount/Update!!");
-
+    // console.log("Runs on Blogs Mount/Update!!");
     // Change document title on blogs(state) change
     if (blogs.length && blogs[0].title) {
       document.title = blogs[0].title;
@@ -37,7 +41,7 @@ export default function Blog() {
     }
   }, [blogs]);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     //setBlogs([{title: formData.title,content:formData.content}, ...blogs]);
@@ -46,12 +50,20 @@ export default function Blog() {
       blog: { title: formData.title, content: formData.content },
     });
 
+    // Add a new document with a generated id.
+    const docRef = await addDoc(collection(db, "blogs"), {
+      title: formData.title,
+      content: formData.content,
+      createdOn: new Date(),
+    });
+    // console.log("Document written with ID: ", docRef.id);
+
     //Clear Input Fields
     setformData({ title: "", content: "" });
 
     //Setting focus on title after adding a blog
     titleRef.current.focus();
-    console.log(blogs);
+    // console.log(blogs);
   }
 
   function removeBlog(i) {
@@ -77,6 +89,7 @@ export default function Blog() {
                   content: formData.content,
                 })
               }
+              required
             />
           </Row>
 
@@ -88,6 +101,7 @@ export default function Blog() {
               onChange={(e) =>
                 setformData({ title: formData.title, content: e.target.value })
               }
+              required
             />
           </Row>
 
