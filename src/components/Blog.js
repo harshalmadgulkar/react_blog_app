@@ -1,100 +1,82 @@
-//Blogging App using Hooks
-import { useState, useRef, useEffect, useReducer } from "react";
+//Blogging App with Firebase
+import { useState, useRef, useEffect } from "react";
 
-// import db exported from JSfile firebaseInit.js
-import { db } from "../firebaseInit.js";
-// database addDoc function from Firebase
-import { collection, addDoc, getDocs, deleteDoc } from "firebase/firestore";
+//Import fireStore reference from frebaseInit file
+import { db } from "../firebaseInit";
 
-// Reducer function
-const blogsReducer = (state, action) => {
-  switch (action.type) {
-    case "ADD_DATABASE":
-      return [...action.blog];
-    case "ADD":
-      return [action.blog, ...state];
-    case "REMOVE":
-      return state.filter((blog, index) => index !== action.index);
-    default:
-      return [];
-  }
-};
+//Import all the required functions from fireStore
+import {
+  collection,
+  doc,
+  onSnapshot,
+  setDoc,
+  deleteDoc,
+} from "firebase/firestore";
 
-// Blog Component
 export default function Blog() {
   const [formData, setformData] = useState({ title: "", content: "" });
-  const [blogs, dispatch] = useReducer(blogsReducer, []);
+  const [blogs, setBlogs] = useState([]);
 
-  //useRef hook initialized
   const titleRef = useRef(null);
 
   useEffect(() => {
-    // Default focus on title input
     titleRef.current.focus();
   }, []);
 
   useEffect(() => {
-    // console.log("Runs on Blogs Mount/Update!!");
-    // Change document title on blogs(state) change
-    if (blogs.length && blogs[0].title) {
-      document.title = blogs[0].title;
-    } else {
-      document.title = "No blogs!";
-    }
-  }, [blogs]);
+    /** get all the documents from the fireStore using getDocs() */
 
-  // getFirebase Data and render
-  useEffect(() => {
-    async function getFirebaseDB(params) {
-      const Snapshot = await getDocs(collection(db, "blogs"));
-      let firebaseDb = [];
-      Snapshot.forEach((doc) => {
-        let blog = {
-          title: doc.data().title,
-          content: doc.data().content,
-          createdOn: doc.data().createdOn,
-          id: doc.data().id,
+    // async function fetchData() {
+    //   const snapShot = await getDocs(collection(db, "blogs"));
+    //   console.log(snapShot);
+
+    //   const blogs = snapShot.docs.map((doc) => {
+    //     return {
+    //       id: doc.id,
+    //       ...doc.data(),
+    //     };
+    //   });
+    //   console.log(blogs);
+    //   setBlogs(blogs);
+    // }
+    // fetchData();
+
+    const unsub = onSnapshot(collection(db, "blogs"), (snapShot) => {
+      const blogs = snapShot.docs.map((doc) => {
+        return {
+          id: doc.id,
+          ...doc.data(),
         };
-        firebaseDb.unshift(blog);
       });
-      // console.log("firebaseDb", firebaseDb);
-      dispatch({
-        type: "ADD_DATABASE",
-        blog: firebaseDb,
-      });
-    }
-    getFirebaseDB();
+      console.log(blogs);
+      setBlogs(blogs);
+    });
   }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    titleRef.current.focus();
 
+    // Commenting setBlogs() as realtime Updates will be recieved from the database
     //setBlogs([{title: formData.title,content:formData.content}, ...blogs]);
-    dispatch({
-      type: "ADD",
-      blog: { title: formData.title, content: formData.content },
-    });
-    // Add a new document with a generated id.
-    const docRef = await addDoc(collection(db, "blogs"), {
+    /** Add a new document with an auto generated id. */
+
+    const docRef = doc(collection(db, "blogs"));
+
+    // Adding new blog to DB
+    await setDoc(docRef, {
       title: formData.title,
       content: formData.content,
       createdOn: new Date(),
     });
-    // console.log("Document written with ID: ", docRef.id);
-    //Clear Input Fields
+
     setformData({ title: "", content: "" });
-    //Setting focus on title after adding a blog
-    titleRef.current.focus();
   }
 
-  function removeBlog(blog,i) {
-    //setBlogs( blogs.filter((blog,index)=> index !== i));
-    dispatch({ type: "REMOVE", index: i });
-    // async function deleteBlog(blog) {
-    //   console.log(blog);
-    //   // await deleteDoc(doc(db, "blogs", "DC"));
-    // }
-    // deleteBlog();
+  async function removeBlog(id) {
+    // setBlogs(blogs.filter((blog, index) => index !== i));
+
+    await deleteDoc(doc(db, "blogs", id));
   }
 
   return (
@@ -107,15 +89,14 @@ export default function Blog() {
             <input
               className="input"
               placeholder="Enter the Title of the Blog here.."
-              value={formData.title}
               ref={titleRef}
+              value={formData.title}
               onChange={(e) =>
                 setformData({
                   title: e.target.value,
                   content: formData.content,
                 })
               }
-              required
             />
           </Row>
 
@@ -123,11 +104,11 @@ export default function Blog() {
             <textarea
               className="input content"
               placeholder="Content of the Blog goes here.."
+              required
               value={formData.content}
               onChange={(e) =>
                 setformData({ title: formData.title, content: e.target.value })
               }
-              required
             />
           </Row>
 
@@ -148,7 +129,7 @@ export default function Blog() {
           <div className="blog-btn">
             <button
               onClick={() => {
-                removeBlog(i,blog);
+                removeBlog(blog.id);
               }}
               className="btn remove"
             >
