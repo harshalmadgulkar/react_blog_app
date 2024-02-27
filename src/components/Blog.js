@@ -4,11 +4,13 @@ import { useState, useRef, useEffect, useReducer } from "react";
 // import db exported from JSfile firebaseInit.js
 import { db } from "../firebaseInit.js";
 // database addDoc function from Firebase
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc } from "firebase/firestore";
 
 // Reducer function
 const blogsReducer = (state, action) => {
   switch (action.type) {
+    case "ADD_DATABASE":
+      return [...action.blog];
     case "ADD":
       return [action.blog, ...state];
     case "REMOVE":
@@ -41,6 +43,29 @@ export default function Blog() {
     }
   }, [blogs]);
 
+  // getFirebase Data and render
+  useEffect(() => {
+    async function getFirebaseDB(params) {
+      const Snapshot = await getDocs(collection(db, "blogs"));
+      let firebaseDb = [];
+      Snapshot.forEach((doc) => {
+        let blog = {
+          title: doc.data().title,
+          content: doc.data().content,
+          createdOn: doc.data().createdOn,
+          id: doc.data().id,
+        };
+        firebaseDb.unshift(blog);
+      });
+      // console.log("firebaseDb", firebaseDb);
+      dispatch({
+        type: "ADD_DATABASE",
+        blog: firebaseDb,
+      });
+    }
+    getFirebaseDB();
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -49,7 +74,6 @@ export default function Blog() {
       type: "ADD",
       blog: { title: formData.title, content: formData.content },
     });
-
     // Add a new document with a generated id.
     const docRef = await addDoc(collection(db, "blogs"), {
       title: formData.title,
@@ -57,18 +81,20 @@ export default function Blog() {
       createdOn: new Date(),
     });
     // console.log("Document written with ID: ", docRef.id);
-
     //Clear Input Fields
     setformData({ title: "", content: "" });
-
     //Setting focus on title after adding a blog
     titleRef.current.focus();
-    // console.log(blogs);
   }
 
-  function removeBlog(i) {
+  function removeBlog(blog,i) {
     //setBlogs( blogs.filter((blog,index)=> index !== i));
     dispatch({ type: "REMOVE", index: i });
+    // async function deleteBlog(blog) {
+    //   console.log(blog);
+    //   // await deleteDoc(doc(db, "blogs", "DC"));
+    // }
+    // deleteBlog();
   }
 
   return (
@@ -114,7 +140,7 @@ export default function Blog() {
       {/* Section where submitted blogs will be displayed */}
       <h2> Blogs </h2>
       {blogs.map((blog, i) => (
-        <div className="blog">
+        <div className="blog" key={i}>
           <h3>{blog.title}</h3>
           <hr />
           <p>{blog.content}</p>
@@ -122,7 +148,7 @@ export default function Blog() {
           <div className="blog-btn">
             <button
               onClick={() => {
-                removeBlog(i);
+                removeBlog(i,blog);
               }}
               className="btn remove"
             >
